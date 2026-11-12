@@ -97,6 +97,24 @@ th{background:var(--accent-soft);font-weight:600}
 .opt.right .k{color:var(--ok)}
 .opt.wrong{border-color:var(--bad);background:var(--bad-bg)}
 .opt.wrong .k{color:var(--bad)}
+.mk{display:grid;gap:10px;border:1px dashed var(--line);border-radius:12px;padding:14px;background:var(--sunk)}
+.mk-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mk-h b{font-size:15px}
+.mk-h small{color:var(--muted);font-size:12px}
+.mk-q{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mk-q button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 8px;font-size:14px;font-weight:600;line-height:1.35}
+.mk-q button.on.know{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.mk-q button.on.dunno{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.orow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:6px 9px;font-size:12px;font-weight:600;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on.k{background:var(--ok-bg);color:var(--ok)}
+.seg button.on.u{background:var(--bad-bg);color:var(--bad)}
+.tagline{font-size:13px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tag{border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600}
+.tag.k{background:var(--ok-bg);color:var(--ok)} .tag.u{background:var(--bad-bg);color:var(--bad)}
+@media (max-width:420px){.seg button{padding:6px 7px}}
 .verdict{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
 .verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
 .exp{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:6px;font-size:15px}
@@ -296,9 +314,11 @@ const MODES={
   s2:{label:'2과목 30문항',list:()=>QS.filter(q=>q.n>20&&q.n<=50).map(q=>q.n)},
   s3:{label:'3과목 50문항',list:()=>QS.filter(q=>q.n>50).map(q=>q.n)},
   wrong:{label:'최근에 틀린 문제',list:()=>QS.filter(q=>rec.stats[q.n]&&rec.stats[q.n].last==='w').map(q=>q.n)},
+  dunno:{label:'모르겠다고 표시한 문제',list:()=>QS.filter(q=>isDunno(rec,q.n)).map(q=>q.n)},
 };
+function isDunno(r,n){const m=(r.marks||{})[n];return !!m&&(m.q==='dunno'||Object.values(m.o||{}).includes('u'))}
 function renderHome(){
-  const s=summary(rec); const run=rec.run; const wrongN=MODES.wrong.list().length;
+  const s=summary(rec); const run=rec.run; const wrongN=MODES.wrong.list().length; const dunnoN=MODES.dunno.list().length;
   const active=run&&!run.done&&run.list.length;
   $('#v-home').innerHTML=`
   <div class="hero" style="padding-block:28px 8px">
@@ -316,6 +336,7 @@ function renderHome(){
     ${run&&run.done?`<button class="btn" data-act="lastresult"><span>지난 결과 보기 · ${esc(run.label)}</span><small class="num">${run.score}/${run.list.length}</small></button>`:''}
     <button class="btn ${active?'':'primary'}" data-mode="all"><span>${active?'전체 100문항 처음부터':'전체 100문항 풀기'}</span><small>실전처럼 · 과락 판정</small></button>
     <button class="btn" data-mode="wrong" ${wrongN?'':'disabled'}><span>틀린 문제만 다시 풀기</span><small class="num">${wrongN}문항</small></button>
+    <button class="btn" data-mode="dunno" ${dunnoN?'':'disabled'}><span>모르겠다고 표시한 문제 다시 보기</span><small class="num">${dunnoN}문항</small></button>
   </div>
   <div class="sect">
     <h2>과목별로 풀기</h2>
@@ -356,7 +377,7 @@ const countCorrect=r=>Object.entries(r.picks||{}).filter(([n,p])=>QS[n-1].a===p)
 
 /* ---------- quiz ---------- */
 function renderQuiz(){
-  const r=rec.run; const n=r.list[r.pos]; const q=QS[n-1]; const pick=r.picks[n];
+  const r=rec.run; const n=r.list[r.pos]; const q=QS[n-1]; const pick=r.picks[n]; rec.marks=rec.marks||{}; const mk=rec.marks[n]||{};
   const answered=Object.keys(r.picks).length; const correct=countCorrect(r);
   const e=q.e; const cut=e.indexOf('<p class="xs">개념정리'); const main=cut<0?e:e.slice(0,cut); const more=cut<0?'':e.slice(cut);
   const isLast=r.pos===r.list.length-1;
@@ -375,7 +396,14 @@ function renderQuiz(){
     <p class="qtext">${esc(q.q)}</p>
     ${q.x}
     <div class="opts">${q.o.map((t,i)=>{const k=i+1;let cls='';if(pick){if(k===q.a)cls='right';else if(k===pick)cls='wrong'}
-      return `<button class="opt ${cls}" data-pick="${k}" ${pick?'disabled':''}><span class="k">${MARK[k]}</span><span>${esc(t)}</span></button>`}).join('')}</div>
+      const ob=`<button class="opt ${cls}" data-pick="${k}" ${pick?'disabled':''}><span class="k">${MARK[k]}</span><span>${esc(t)}</span></button>`;
+      if(!pick) return ob;
+      const v=(mk.o||{})[k];
+      return `<div class="orow">${ob}<span class="seg" role="group" aria-label="${MARK[k]} 보기 이해도"><button class="${v==='k'?'on k':''}" data-om="${k}:k">알아요</button><button class="${v==='u'?'on u':''}" data-om="${k}:u">몰라요</button></span></div>`}).join('')}</div>
+    <div class="mk">
+      <div class="mk-h"><b>이 문제, 나는?</b><small>${pick?'보기마다 「알아요/몰라요」도 눌러 둘 수 있어요':'답을 고르면 보기별로도 표시할 수 있어요'}</small></div>
+      <div class="mk-q"><button class="know ${mk.q==='know'?'on':''}" data-qm="know">이 문제는 확실히 안다</button><button class="dunno ${mk.q==='dunno'?'on':''}" data-qm="dunno">이 문제 자체를 잘 모르겠다</button></div>
+    </div>
     ${pick?`<div class="verdict ${pick===q.a?'ok':'bad'}">${pick===q.a?'정답입니다':'틀렸습니다 · 정답 '+MARK[q.a]}</div>
       <div class="exp">${main}${more?`<details><summary>개념정리 펼치기</summary><div style="display:grid;gap:6px">${more}</div></details>`:''}</div>`:''}
   </article>
@@ -392,6 +420,17 @@ function choose(k){
   pending.push({at:st.at,n,pick:k,ans:QS[n-1].a,ok,label:r.label}); LS.set('tq1:pend:'+me.key,pending);
   save(); renderQuiz();
 }
+function curN(){return rec.run.list[rec.run.pos]}
+function markSave(n){
+  rec.marks=rec.marks||{}; const m=rec.marks[n]||{};
+  const o=m.o||{}; const unk=Object.keys(o).filter(k=>o[k]==='u').sort().map(k=>MARK[k]).join(' '); const kn=Object.keys(o).filter(k=>o[k]==='k').sort().map(k=>MARK[k]).join(' ');
+  if(!m.q&&!Object.keys(o).length) delete rec.marks[n]; else { m.at=now(); rec.marks[n]=m }
+  const q=QS[n-1];
+  pending.push({type:'mark',at:now(),n,s:q.s,u:q.u,q:m.q==='know'?'확실히 안다':m.q==='dunno'?'문제 자체를 잘 모르겠다':'',unknown:unk,known:kn});
+  LS.set('tq1:pend:'+me.key,pending); save(); renderQuiz();
+}
+function markQ(v){const n=curN();rec.marks=rec.marks||{};const m=rec.marks[n]||{o:{}};m.o=m.o||{};m.q=m.q===v?'':v;if(!m.q)delete m.q;rec.marks[n]=m;markSave(n)}
+function markO(k,v){const n=curN();rec.marks=rec.marks||{};const m=rec.marks[n]||{o:{}};m.o=m.o||{};if(m.o[k]===v)delete m.o[k];else m.o[k]=v;rec.marks[n]=m;markSave(n)}
 function go(d){const r=rec.run;const p=r.pos+d;if(p<0||p>=r.list.length)return;r.pos=p;save();renderQuiz();window.scrollTo(0,0)}
 function finish(){
   const r=rec.run; r.done=true; r.score=countCorrect(r); r.finishedAt=now();
@@ -400,6 +439,8 @@ function finish(){
 $('#v-quiz').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b||b.disabled) return;
   if(b.dataset.pick){choose(+b.dataset.pick);return}
+  if(b.dataset.qm){markQ(b.dataset.qm);return}
+  if(b.dataset.om){const [k,v]=b.dataset.om.split(':');markO(+k,v);return}
   const a=b.dataset.act;
   if(a==='prev')go(-1); else if(a==='next')go(1); else if(a==='finish')finish();
   else if(a==='exit'){renderHome();show('home')} else if(a==='grid')openGrid();
@@ -469,6 +510,8 @@ function renderRecords(){
       <div class="h"><h3>${esc(r.name)}</h3><span class="muted" style="font-size:13px">마지막 기록 ${fmtDate(r.updatedAt)}</span></div>
       <div class="facts"><div><small>풀어 본 문항</small><b class="num">${s.seen}</b></div><div><small>누적 정답률</small><b class="num">${s.rate===null?'–':s.rate+'%'}</b></div><div><small>최근 틀린 문제</small><b class="num">${s.seen-s.last}</b></div></div>
       <div class="grid">${QS.map(q=>{const v=st[q.n];const cls=v?(v.last==='c'?'ok':'bad'):'';return `<span class="cell num ${cls}" title="${q.n}번 · 맞힘 ${v?v.c:0} · 틀림 ${v?v.w:0}">${q.n}</span>`}).join('')}</div>
+      ${(()=>{const mk=r.marks||{};const kn=[],dn=[],ou=[];Object.keys(mk).map(Number).sort((a,b)=>a-b).forEach(n=>{const m=mk[n];if(m.q==='know')kn.push(n);if(m.q==='dunno')dn.push(n);const us=Object.keys(m.o||{}).filter(k=>m.o[k]==='u');if(us.length)ou.push(n+'번 '+us.map(k=>MARK[k]).join(''))});
+        return (kn.length||dn.length||ou.length)?`<div style="display:grid;gap:6px">${dn.length?`<div class="tagline"><span class="tag u">문제 자체를 모르겠다</span><span class="num">${dn.join(', ')}</span></div>`:''}${ou.length?`<div class="tagline"><span class="tag u">모르는 보기</span><span class="num">${ou.join(' · ')}</span></div>`:''}${kn.length?`<div class="tagline"><span class="tag k">확실히 안다</span><span class="num">${kn.join(', ')}</span></div>`:''}</div>`:''})()}
       ${top.length?`<div style="font-size:14px"><b>많이 틀린 문항</b> <span class="num">${top.map(([n,v])=>`${n}번(${v.w})`).join(' · ')}</span></div>`:''}
       ${(r.history||[]).length?`<div class="hist">${r.history.slice(0,5).map(h=>`<div><span>${esc(h.label)} <span class="muted" style="font-size:12px">${fmtDate(h.endedAt)}${h.done?'':' · 중단'}</span></span><span class="num">${h.correct}/${h.answered}${h.answered<h.total?` <span class="muted">(총 ${h.total})</span>`:''}</span></div>`).join('')}</div>`:''}
     </div>`}).join('')}
