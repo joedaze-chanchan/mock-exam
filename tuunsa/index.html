@@ -107,14 +107,14 @@ th{background:var(--accent-soft);font-weight:600}
 .mk-q button.on.dunno{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
 .orow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
-.seg button{border:0;background:transparent;padding:6px 9px;font-size:12px;font-weight:600;color:var(--muted)}
+.seg button{border:0;background:transparent;padding:6px 9px;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button.on.k{background:var(--ok-bg);color:var(--ok)}
 .seg button.on.u{background:var(--bad-bg);color:var(--bad)}
 .tagline{font-size:13px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .tag{border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600}
 .tag.k{background:var(--ok-bg);color:var(--ok)} .tag.u{background:var(--bad-bg);color:var(--bad)}
-@media (max-width:420px){.seg button{padding:6px 7px}}
+@media (max-width:420px){.orow{grid-template-columns:1fr}.seg{justify-self:end;margin-top:-4px}.seg button{padding:5px 10px}}
 .verdict{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
 .verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
 .exp{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:6px;font-size:15px}
@@ -397,11 +397,10 @@ function renderQuiz(){
     ${q.x}
     <div class="opts">${q.o.map((t,i)=>{const k=i+1;let cls='';if(pick){if(k===q.a)cls='right';else if(k===pick)cls='wrong'}
       const ob=`<button class="opt ${cls}" data-pick="${k}" ${pick?'disabled':''}><span class="k">${MARK[k]}</span><span>${esc(t)}</span></button>`;
-      if(!pick) return ob;
       const v=(mk.o||{})[k];
-      return `<div class="orow">${ob}<span class="seg" role="group" aria-label="${MARK[k]} 보기 이해도"><button class="${v==='k'?'on k':''}" data-om="${k}:k">알아요</button><button class="${v==='u'?'on u':''}" data-om="${k}:u">몰라요</button></span></div>`}).join('')}</div>
+      return `<div class="orow">${ob}<span class="seg" role="group" aria-label="${MARK[k]} 보기 이해도"><button class="${v==='k'?'on k':''}" data-om="${k}:k">잘 안다</button><button class="${v==='u'?'on u':''}" data-om="${k}:u">모르겠다</button></span></div>`}).join('')}</div>
     <div class="mk">
-      <div class="mk-h"><b>이 문제, 나는?</b><small>${pick?'보기마다 「알아요/몰라요」도 눌러 둘 수 있어요':'답을 고르면 보기별로도 표시할 수 있어요'}</small></div>
+      <div class="mk-h"><b>이 문제, 나는?</b><small>보기마다 「잘 안다 / 모르겠다」도 따로 누를 수 있어요</small></div>
       <div class="mk-q"><button class="know ${mk.q==='know'?'on':''}" data-qm="know">이 문제는 확실히 안다</button><button class="dunno ${mk.q==='dunno'?'on':''}" data-qm="dunno">이 문제 자체를 잘 모르겠다</button></div>
     </div>
     ${pick?`<div class="verdict ${pick===q.a?'ok':'bad'}">${pick===q.a?'정답입니다':'틀렸습니다 · 정답 '+MARK[q.a]}</div>
